@@ -1,0 +1,49 @@
+version: '3.8'
+
+volumes:
+  scylla_node1:
+  scylla_node2:
+  scylla_node3:
+
+services:
+  server:
+    build: 
+      dockerfile: ./Dockerfile
+    ports:
+      - 80:80
+    environment:
+      DB_HOST: scylla-node1
+      DB_USERNAME: 
+      DB_PASSWORD: 
+      HOST_PORT:
+    restart: always
+
+  scylla-node1:
+    image: scylladb/scylla
+    volumes:
+      - scylla_node1:/var/lib/scylla
+    environment:
+      - SCYLLA_USERNAME=
+      - SCYLLA_PASSWORD=
+
+  scylla-node2:
+    image: scylladb/scylla
+    command: --seeds=scylla-node1
+    volumes:
+      - scylla_node2:/var/lib/scylla
+    environment:
+      - SCYLLA_USERNAME=
+      - SCYLLA_PASSWORD=
+    depends_on:
+      - scylla-node1
+
+  scylla-node3:
+    image: scylladb/scylla
+    command: --seeds=scylla-node1
+    volumes:
+      - scylla_node3:/var/lib/scylla
+    environment:
+      - SCYLLA_USERNAME=
+      - SCYLLA_PASSWORD=
+    depends_on:
+      - scylla-node1
