@@ -71,6 +71,7 @@ func main() {
 	* 프론트에서 호출하여 UserPk에 해당하는 전체 메시지 반환
 	 */
 	app.Get("/api/noti", func(c *fiber.Ctx) error {
+		log.Println("Get /api/noti")
 		jwt := c.Get("Authorization")
 
 		// Split the JWT into three parts
@@ -96,7 +97,6 @@ func main() {
 		returnlist := []*SendMessageTmp{}
 		for scanner.Next() {
 			msg := &SendMessageTmp{}
-			// date := date
 
 			err = scanner.Scan(&msg.Id, &msg.UserPk, &msg.MsgContent, &msg.Datetime, &msg.IsChecked)
 			if err != nil {
@@ -119,6 +119,7 @@ func main() {
 		m := c.Queries()
 		id := m["id"]
 
+		log.Println("Get /api/noti : ", id)
 		jwt := c.Get("Authorization")
 
 		// Split the JWT into three parts
@@ -156,8 +157,7 @@ func main() {
 			return err
 		}
 
-		log.Println(p.UserPk)     // 1 -> 0
-		log.Println(p.MsgContent) // hello ->
+		log.Println("Get /api/noti : ", p.UserPk, p.MsgContent)
 		now := time.Now().UTC()
 		u, err := uuid.NewRandom()
 
