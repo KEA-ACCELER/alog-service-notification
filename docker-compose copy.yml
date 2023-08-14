@@ -2,48 +2,77 @@ version: '3.8'
 
 volumes:
   scylla_node1:
-  scylla_node2:
-  scylla_node3:
+  # scylla_node2:
+  # scylla_node3:
 
 services:
   server:
     build: 
       dockerfile: ./Dockerfile
     ports:
-      - 80:80
+      - 8088:8088
     environment:
       DB_HOST: scylla-node1
-      DB_USERNAME: 
+      DB_USERNAME: root
       DB_PASSWORD: 
-      HOST_PORT:
+      HOST_PORT: 8088
     restart: always
+    depends_on:
+      scylla-node1:
+        condition: service_healthy
+      # scylla-node2:
+      #   condition: service_healthy
+      # scylla-node3:
+      #   condition: service_healthy
 
   scylla-node1:
     image: scylladb/scylla
+    command: --seeds=scylla-node1
     volumes:
       - scylla_node1:/var/lib/scylla
     environment:
-      - SCYLLA_USERNAME=
+      - SCYLLA_USERNAME=root
       - SCYLLA_PASSWORD=
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
 
-  scylla-node2:
-    image: scylladb/scylla
-    command: --seeds=scylla-node1
-    volumes:
-      - scylla_node2:/var/lib/scylla
-    environment:
-      - SCYLLA_USERNAME=
-      - SCYLLA_PASSWORD=
-    depends_on:
-      - scylla-node1
+  # scylla-node2:
+  #   image: scylladb/scylla
+  #   command: --seeds=scylla-node1
+  #   volumes:
+  #     - scylla_node2:/var/lib/scylla
+  #   environment:
+  #     - SCYLLA_USERNAME=root
+  #     - SCYLLA_PASSWORD=
+  #   healthcheck:
+  #     test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 10
+  #     start_period: 30s
+  #   depends_on:
+  #     scylla-node1:
+  #       condition: service_healthy
 
-  scylla-node3:
-    image: scylladb/scylla
-    command: --seeds=scylla-node1
-    volumes:
-      - scylla_node3:/var/lib/scylla
-    environment:
-      - SCYLLA_USERNAME=
-      - SCYLLA_PASSWORD=
-    depends_on:
-      - scylla-node1
+  # scylla-node3:
+  #   image: scylladb/scylla
+  #   command: --seeds=scylla-node1
+  #   volumes:
+  #     - scylla_node3:/var/lib/scylla
+  #   environment:
+  #     - SCYLLA_USERNAME=root
+  #     - SCYLLA_PASSWORD=
+  #   healthcheck:
+  #     test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+  #     interval: 15s
+  #     timeout: 10s
+  #     retries: 10
+  #     start_period: 30s
+  #   depends_on:
+  #     scylla-node1:
+  #       condition: service_healthy
+
