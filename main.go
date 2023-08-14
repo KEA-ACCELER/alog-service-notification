@@ -1,8 +1,12 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -10,12 +14,19 @@ import (
 	"github.com/google/uuid"
 )
 
+type Payload struct {
+	// UserEmail string `json:"userEmail"`
+	// UserNN string `json:"userNN"`
+	UserPk int64 `json:"userPk"`
+}
+
 type AddMessageTmp struct {
 	UserPk     int64
 	MsgContent string
 }
 
 type SendMessageTmp struct {
+	Id         string
 	UserPk     int64
 	MsgContent string
 	Datetime   string
@@ -44,7 +55,7 @@ func main() {
 	}
 
 	// noti라는 table이 있는지 확인하고 없으면 만듭니다.
-	err = session.Query("CREATE TABLE IF NOT EXISTS alog.noti (id uuid PRIMARY KEY, UserPk bigint, MsgContent text, Datetime date, IsChecked boolean);").Exec()
+	err = session.Query("CREATE TABLE IF NOT EXISTS alog.noti (id uuid, UserPk bigint, MsgContent text, Datetime date, IsChecked boolean, PRIMARY KEY (id, UserPk));").Exec()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,17 +71,34 @@ func main() {
 	* 프론트에서 호출하여 UserPk에 해당하는 전체 메시지 반환
 	 */
 	app.Get("/api/noti", func(c *fiber.Ctx) error {
-		m := c.Queries()
-		UserPk := m["userPk"]
+		jwt := c.Get("Authorization")
 
-		scanner := session.Query("SELECT UserPk, MsgContent, Datetime, IsChecked FROM alog.noti WHERE UserPk=? ALLOW FILTERING;", UserPk).Iter().Scanner()
+		// Split the JWT into three parts
+		parts := strings.Split(jwt, ".")
+		if len(parts) != 3 {
+			return fmt.Errorf("invalid JWT format")
+		}
+
+		// Decode the second part, which is the payload
+		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+		if err != nil {
+			return fmt.Errorf("failed to decode payload: %v", err)
+		}
+		// Unmarshal the payload into a struct
+		p := &Payload{}
+		err = json.Unmarshal(payload, &p)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal payload: %v", err)
+		}
+
+		scanner := session.Query("SELECT id, UserPk, MsgContent, Datetime, IsChecked FROM alog.noti WHERE UserPk=?;", p.UserPk).Iter().Scanner()
 
 		returnlist := []*SendMessageTmp{}
 		for scanner.Next() {
 			msg := &SendMessageTmp{}
 			// date := date
 
-			err = scanner.Scan(&msg.UserPk, &msg.MsgContent, &msg.Datetime, &msg.IsChecked)
+			err = scanner.Scan(&msg.Id, &msg.UserPk, &msg.MsgContent, &msg.Datetime, &msg.IsChecked)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -85,6 +113,37 @@ func main() {
 
 		return c.JSON(fiber.Map{"data": returnlist})
 
+	})
+
+	app.Put("/api/noti", func(c *fiber.Ctx) error {
+		m := c.Queries()
+		id := m["id"]
+
+		jwt := c.Get("Authorization")
+
+		// Split the JWT into three parts
+		parts := strings.Split(jwt, ".")
+		if len(parts) != 3 {
+			return fmt.Errorf("invalid JWT format")
+		}
+
+		// Decode the second part, which is the payload
+		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+		if err != nil {
+			return fmt.Errorf("failed to decode payload: %v", err)
+		}
+		// Unmarshal the payload into a struct
+		p := &Payload{}
+		err = json.Unmarshal(payload, &p)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal payload: %v", err)
+		}
+
+		// TODO update noti set IsChecked = true where id = id
+		if err := session.Query("UPDATE alog.noti SET IsChecked = true WHERE id=? and UserPk=?;", id, p.UserPk).Exec(); err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		return c.Status(fiber.StatusOK).SendString("ok")
 	})
 
 	/*
