@@ -11,6 +11,7 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 type Payload struct {
@@ -34,6 +35,7 @@ type SendMessageTmp struct {
 
 func main() {
 	app := fiber.New()
+	app.Use(cors.New())
 
 	// 실라 디비와 연결하기
 	cluster := gocql.NewCluster(os.Getenv("DB_HOST"))
