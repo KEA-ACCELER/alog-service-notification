@@ -11,7 +11,6 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 )
 
 type Payload struct {
@@ -55,7 +54,7 @@ func main() {
 	}
 
 	// noti라는 table이 있는지 확인하고 없으면 만듭니다.
-	err = session.Query("CREATE TABLE IF NOT EXISTS alog.noti (id uuid, UserPk bigint, MsgContent text, Datetime date, IsChecked boolean, PRIMARY KEY (id, UserPk));").Exec()
+	err = session.Query("CREATE TABLE IF NOT EXISTS alog.notification (id uuid, UserPk bigint, MsgContent text, Datetime timestamp, IsChecked boolean, PRIMARY KEY (id, UserPk));").Exec()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,18 +91,18 @@ func main() {
 			return fmt.Errorf("failed to unmarshal payload: %v", err)
 		}
 
-		scanner := session.Query("SELECT id, UserPk, MsgContent, Datetime, IsChecked FROM alog.noti WHERE UserPk=?;", p.UserPk).Iter().Scanner()
+		scanner := session.Query("SELECT id, UserPk, MsgContent, Datetime, IsChecked FROM alog.notification WHERE UserPk=?;", p.UserPk).Iter().Scanner()
 
 		returnlist := []*SendMessageTmp{}
 		for scanner.Next() {
+			datetime := time.Time{}
 			msg := &SendMessageTmp{}
 
-			err = scanner.Scan(&msg.Id, &msg.UserPk, &msg.MsgContent, &msg.Datetime, &msg.IsChecked)
+			err = scanner.Scan(&msg.Id, &msg.UserPk, &msg.MsgContent, &datetime, &msg.IsChecked)
 			if err != nil {
 				log.Fatal(err)
 			}
-			log.Println("msg.Datetime : ", msg.Datetime)
-			log.Println("msg.ischecked : ", msg.IsChecked)
+			msg.Datetime = datetime.Format("2006-01-02T15:04:05 +09:00:00")
 			returnlist = append(returnlist, msg)
 		}
 		// scanner.Err() closes the iterator, so scanner nor iter should be used afterwards.
@@ -141,7 +140,7 @@ func main() {
 		}
 
 		// TODO update noti set IsChecked = true where id = id
-		if err := session.Query("UPDATE alog.noti SET IsChecked = true WHERE id=? and UserPk=?;", id, p.UserPk).Exec(); err != nil {
+		if err := session.Query("UPDATE alog.notification SET IsChecked = true WHERE id=? and UserPk=?;", id, p.UserPk).Exec(); err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 		return c.Status(fiber.StatusOK).SendString("ok")
@@ -159,13 +158,13 @@ func main() {
 
 		log.Println("Get /api/noti : ", p.UserPk, p.MsgContent)
 		now := time.Now().UTC()
-		u, err := uuid.NewRandom()
-
+		u, err := gocql.RandomUUID()
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
+
 		// TODO insert into noti (_pk , UserPk, message, time, IsChecked) values (p.userPk, p.MsgContent, now, false)
-		if err := session.Query("INSERT INTO alog.noti (id, UserPk, MsgContent, Datetime, IsChecked) VALUES (?, ?, ?, ?, ?);", u.String(), p.UserPk, p.MsgContent, now, false).Exec(); err != nil {
+		if err := session.Query("INSERT INTO alog.notification (id, UserPk, MsgContent, Datetime, IsChecked) VALUES (?, ?, ?, ?, ?);", u.String(), p.UserPk, p.MsgContent, now, false).Exec(); err != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 
