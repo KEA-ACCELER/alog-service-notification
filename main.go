@@ -104,7 +104,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			msg.Datetime = datetime.Format("2006-01-02T15:04:05 +09:00:00")
+			msg.Datetime = datetime.Format(time.RFC3339)
 			returnlist = append(returnlist, msg)
 		}
 		// scanner.Err() closes the iterator, so scanner nor iter should be used afterwards.
@@ -158,7 +158,7 @@ func main() {
 			return err
 		}
 
-		log.Println("Get /api/noti : ", p.UserPk, p.MsgContent)
+		log.Println("POST /api/noti : ", p.UserPk, p.MsgContent)
 		now := time.Now().UTC()
 		u, err := gocql.RandomUUID()
 		if err != nil {
