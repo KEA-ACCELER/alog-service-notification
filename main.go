@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -111,6 +112,10 @@ func main() {
 		if err := scanner.Err(); err != nil {
 			log.Fatal(err)
 		}
+
+		sort.Slice(returnlist, func(i, j int) bool {
+			return returnlist[i].Datetime > returnlist[j].Datetime
+		})
 
 		return c.JSON(fiber.Map{"data": returnlist})
 
